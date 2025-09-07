@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayGuard AI - API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #0070f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0051cc;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>PayGuard AI - API Test Page</h1>
+    
+    <div class="test-section">
+        <h2>1. Test OpenAI API Key</h2>
+        <button onclick="testAPIKey()">Test API Key</button>
+        <div id="apiKeyResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Test Chat Functionality</h2>
+        <input type="text" id="chatInput" placeholder="Enter a message..." style="width: 300px; padding: 8px;">
+        <button onclick="testChat()">Send Chat</button>
+        <div id="chatResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Test Product Search</h2>
+        <input type="text" id="searchInput" placeholder="e.g., laptop under $500" value="Find me a good laptop under $500" style="width: 300px; padding: 8px;">
+        <button onclick="testProductSearch()">Search Products</button>
+        <div id="searchResult" class="result"></div>
+    </div>
+
+    <script>
+        async function testAPIKey() {
+            const resultDiv = document.getElementById('apiKeyResult');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch('/api/ai/test');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `<span class="success">✓ API Key is valid!</span>\n` +
+                        `Key Length: ${data.keyLength} characters\n` +
+                        `Key Prefix: ${data.keyPrefix}`;
+                } else {
+                    resultDiv.innerHTML = `<span class="error">✗ API Key Error: ${data.message}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">✗ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function testChat() {
+            const input = document.getElementById('chatInput').value;
+            const resultDiv = document.getElementById('chatResult');
+            
+            if (!input) {
+                resultDiv.innerHTML = '<span class="error">Please enter a message</span>';
+                return;
+            }
+            
+            resultDiv.innerHTML = 'Sending...';
+            
+            try {
+                const response = await fetch('/api/ai/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        systemPrompt: 'You are a helpful AI shopping assistant.',
+                        messages: [
+                            { role: 'user', content: input }
+                        ]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<span class="success">✓ Response received:</span>\n${data.content}`;
+                } else {
+                    resultDiv.innerHTML = `<span class="error">✗ Error: ${data.error}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">✗ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function testProductSearch() {
+            const query = document.getElementById('searchInput').value;
+            const resultDiv = document.getElementById('searchResult');
+            
+            if (!query) {
+                resultDiv.innerHTML = '<span class="error">Please enter a search query</span>';
+                return;
+            }
+            
+            resultDiv.innerHTML = 'Searching...';
+            
+            const systemPrompt = `You are an AI shopping assistant.
+Find products matching the user's request.
+Format your response as a JSON object with:
+{
+  "recommendations": [
+    {
+      "name": "Product name",
+      "description": "Brief description",
+      "price": 450000000,
+      "vendor": "Vendor name",
+      "reason": "Why this product is recommended",
+      "url": "optional_url"
+    }
+  ],
+  "totalCost": 450000000,
+  "reasoning": "Overall shopping strategy"
+}`;
+            
+            try {
+                const response = await fetch('/api/ai/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        systemPrompt,
+                        messages: [
+                            { role: 'user', content: query }
+                        ]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    try {
+                        const products = JSON.parse(data.content);
+                        resultDiv.innerHTML = `<span class="success">✓ Products found:</span>\n` +
+                            JSON.stringify(products, null, 2);
+                    } catch (e) {
+                        resultDiv.innerHTML = `<span class="success">✓ Response:</span>\n${data.content}`;
+                    }
+                } else {
+                    resultDiv.innerHTML = `<span class="error">✗ Error: ${data.error}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">✗ Error: ${error.message}</span>`;
+            }
+        }
+
+        // Test API key on page load
+        window.onload = () => {
+            testAPIKey();
+        };
+    </script>
+</body>
+</html>

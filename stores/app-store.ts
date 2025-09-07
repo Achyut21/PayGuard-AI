@@ -34,6 +34,16 @@ interface Notification {
   createdAt: string;
   isRead: boolean;
 }
+
+interface ChatMessage {
+  id: string;
+  agentId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  products?: any[];
+  timestamp: Date;
+}
+
 interface AppState {
   // Wallet connection
   isConnected: boolean;
@@ -51,6 +61,9 @@ interface AppState {
   notifications: Notification[];
   unreadCount: number;
   
+  // Chat messages (per agent)
+  chatMessages: Record<string, ChatMessage[]>;
+  
   // SSE connection
   sseConnected: boolean;
   
@@ -67,6 +80,12 @@ interface AppState {
   addNotification: (notification: Notification) => void;
   markNotificationRead: (id: number) => void;
   clearNotifications: () => void;
+  
+  // Chat actions
+  addChatMessage: (agentId: string, message: ChatMessage) => void;
+  getChatMessages: (agentId: string) => ChatMessage[];
+  clearChatMessages: (agentId: string) => void;
+  
   setSseConnected: (connected: boolean) => void;
   reset: () => void;
 }
@@ -79,6 +98,7 @@ const initialState = {
   paymentHistory: [],
   notifications: [],
   unreadCount: 0,
+  chatMessages: {},
   sseConnected: false,
 };
 
@@ -140,6 +160,27 @@ export const useAppStore = create<AppState>()(
       clearNotifications: () =>
         set({ notifications: [], unreadCount: 0 }),
 
+      addChatMessage: (agentId, message) =>
+        set((state) => ({
+          chatMessages: {
+            ...state.chatMessages,
+            [agentId]: [...(state.chatMessages[agentId] || []), message],
+          },
+        })),
+
+      getChatMessages: (agentId) => {
+        const state = useAppStore.getState();
+        return state.chatMessages[agentId] || [];
+      },
+
+      clearChatMessages: (agentId) =>
+        set((state) => ({
+          chatMessages: {
+            ...state.chatMessages,
+            [agentId]: [],
+          },
+        })),
+
       setSseConnected: (connected) => set({ sseConnected: connected }),
 
       reset: () => set(initialState),
@@ -149,6 +190,7 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         userAddress: state.userAddress,
         agents: state.agents,
+        chatMessages: state.chatMessages,
       }),
     }
   )

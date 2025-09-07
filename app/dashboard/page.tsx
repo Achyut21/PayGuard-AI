@@ -13,13 +13,14 @@ import { Shield, Bot, Bell, History, BarChart } from 'lucide-react';
 import { useWallet } from '@/providers/wallet-provider';
 import { useAppStore } from '@/stores/app-store';
 import { useSSE } from '@/hooks/use-sse';
-import { paymentApi } from '@/lib/api-client';
+import { paymentApi, agentApi } from '@/lib/api-client';
 
 export default function Dashboard() {
   const router = useRouter();
   const { accountAddress } = useWallet();
   const { 
-    agents, 
+    agents,
+    setAgents, 
     pendingPayments, 
     setPendingPayments,
     paymentHistory,
@@ -37,10 +38,32 @@ export default function Dashboard() {
     if (!accountAddress) {
       router.push('/');
     } else {
+      fetchAgents();
       fetchPendingPayments();
       fetchPaymentHistory();
+      
+      // Refresh agents data every 10 seconds to keep totalSpent updated
+      const interval = setInterval(() => {
+        fetchAgents();
+      }, 10000);
+      
+      return () => clearInterval(interval);
     }
   }, [accountAddress, router]);
+  
+  const fetchAgents = async () => {
+    if (!accountAddress) return;
+    
+    try {
+      const response = await agentApi.getAgents(accountAddress);
+      if (response.success) {
+        setAgents(response.agents);
+      }
+    } catch (error) {
+      console.error('Error fetching agents:', error);
+    }
+  };
+  
   const fetchPendingPayments = async () => {
     if (!accountAddress) return;
     
@@ -161,7 +184,20 @@ export default function Dashboard() {
           </Card>
         </div>
         {/* Main Content with Tabs */}
-        <Tabs defaultValue="agents" className="space-y-4">
+        <Tabs 
+          defaultValue="agents" 
+          className="space-y-4"
+          onValueChange={(value) => {
+            // Refresh data when switching tabs
+            if (value === 'agents') {
+              fetchAgents();
+            } else if (value === 'approvals') {
+              fetchPendingPayments();
+            } else if (value === 'history') {
+              fetchPaymentHistory();
+            }
+          }}
+        >
           <div className="flex justify-between items-center">
             <TabsList>
               <TabsTrigger value="agents">AI Agents</TabsTrigger>

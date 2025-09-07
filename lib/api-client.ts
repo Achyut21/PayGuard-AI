@@ -11,6 +11,11 @@ export interface ApiResponse<T = any> {
 
 // Agent APIs
 export const agentApi = {
+  getAgents: async (ownerAddress: string) => {
+    const response = await fetch(`${API_BASE}/agent?owner=${ownerAddress}`);
+    return response.json();
+  },
+
   create: async (params: {
     agentId: string;
     name: string;

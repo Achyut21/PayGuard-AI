@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       ]
     });
 
-    const requestId = result.lastInsertRowid;
+    const requestId = Number(result.lastInsertRowid);
 
     // If auto-approved, update agent's total spent
     if (autoApprove) {

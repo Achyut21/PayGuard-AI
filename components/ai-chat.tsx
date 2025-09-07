@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Bot, Send, ShoppingCart, X } from 'lucide-react';
 import { createAIAgent, type ProductRecommendation } from '@/lib/ai-agent';
 import { useWallet } from '@/providers/wallet-provider';
+import { useAppStore } from '@/stores/app-store';
 import toast from 'react-hot-toast';
 
 interface Message {
@@ -29,7 +30,12 @@ interface AIChatProps {
 
 export function AIChat({ agent, onClose }: AIChatProps) {
   const { accountAddress } = useWallet();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { getChatMessages, addChatMessage, setPendingPayments, updateAgent } = useAppStore();
+  
+  // Get persisted messages from store
+  const [messages, setMessages] = useState<Message[]>(() => 
+    getChatMessages(agent.id) as Message[]
+  );
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [aiAgent, setAiAgent] = useState<any>(null);
@@ -39,14 +45,19 @@ export function AIChat({ agent, onClose }: AIChatProps) {
     const ai = createAIAgent(agent.id, agent.spendingLimit - agent.totalSpent);
     setAiAgent(ai);
     
-    // Add welcome message
-    setMessages([{
-      id: '1',
-      role: 'assistant',
-      content: `Hi! I'm ${agent.name}, your AI shopping assistant. I have a budget of ${((agent.spendingLimit - agent.totalSpent) / 1000000).toFixed(2)} ALGO available. What would you like to shop for today?`,
-      timestamp: new Date()
-    }]);
-  }, [agent]);
+    // Only add welcome message if no messages exist
+    const existingMessages = getChatMessages(agent.id);
+    if (existingMessages.length === 0) {
+      const welcomeMessage: Message = {
+        id: '1',
+        role: 'assistant',
+        content: `Hi! I'm ${agent.name}, your AI shopping assistant. I have a budget of ${((agent.spendingLimit - agent.totalSpent) / 1000000).toFixed(2)} ALGO available. What would you like to shop for today?`,
+        timestamp: new Date()
+      };
+      setMessages([welcomeMessage]);
+      addChatMessage(agent.id, welcomeMessage as any);
+    }
+  }, [agent, getChatMessages, addChatMessage]);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -62,6 +73,7 @@ export function AIChat({ agent, onClose }: AIChatProps) {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    addChatMessage(agent.id, userMessage as any); // Persist to store
     setInput('');
     setIsLoading(true);
 
@@ -82,6 +94,7 @@ export function AIChat({ agent, onClose }: AIChatProps) {
         };
 
         setMessages(prev => [...prev, assistantMessage]);
+        addChatMessage(agent.id, assistantMessage as any); // Persist to store
       } else {
         // Regular chat
         const response = await aiAgent.chat(input);
@@ -94,6 +107,7 @@ export function AIChat({ agent, onClose }: AIChatProps) {
         };
 
         setMessages(prev => [...prev, assistantMessage]);
+        addChatMessage(agent.id, assistantMessage as any); // Persist to store
       }
     } catch (error) {
       console.error('Chat error:', error);
@@ -116,6 +130,21 @@ export function AIChat({ agent, onClose }: AIChatProps) {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, systemMessage]);
+      addChatMessage(agent.id, systemMessage as any); // Persist to store
+      
+      // Update agent's total spent if auto-approved
+      if (result.autoApproved) {
+        updateAgent(agent.id, {
+          totalSpent: agent.totalSpent + product.price
+        });
+      } else {
+        // Refresh pending payments if not auto-approved
+        const response = await fetch(`/api/pending?owner=${accountAddress}`);
+        const data = await response.json();
+        if (data.success) {
+          setPendingPayments(data.pendingPayments);
+        }
+      }
     } else {
       toast.error(result.message);
     }

@@ -29,7 +29,8 @@ export async function initDatabase() {
     // Create payment_requests table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS payment_requests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,        agent_id TEXT NOT NULL,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        agent_id TEXT NOT NULL,
         amount INTEGER NOT NULL,
         recipient_address TEXT NOT NULL,
         reason TEXT NOT NULL,
@@ -60,7 +61,8 @@ export async function initDatabase() {
 
     // Create notifications table
     await db.execute(`
-      CREATE TABLE IF NOT EXISTS notifications (        id INTEGER PRIMARY KEY AUTOINCREMENT,
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_address TEXT NOT NULL,
         type TEXT NOT NULL,
         title TEXT NOT NULL,

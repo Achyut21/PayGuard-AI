@@ -1,11 +1,5 @@
-import OpenAI from 'openai';
-import { AI_CONFIG } from './config';
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: AI_CONFIG.OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true, // Only for hackathon demo
-});
+// Note: OpenAI client removed - now using API route for security
+// The OpenAI API key should only be used server-side
 
 export interface ShoppingRequest {
   query: string;
@@ -73,23 +67,41 @@ Return a JSON object with:
   "reasoning": "Overall shopping strategy"
 }`;
 
-      const completion = await openai.chat.completions.create({
-        model: AI_CONFIG.MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: AI_CONFIG.TEMPERATURE,
-        max_tokens: AI_CONFIG.MAX_TOKENS,
-        response_format: { type: 'json_object' }
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemPrompt,
+          messages: [
+            { role: 'user', content: userPrompt }
+          ]
+        })
       });
 
-      const response = JSON.parse(completion.choices[0].message.content || '{}');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to search products');
+      }
+
+      const data = await response.json();
+      
+      let result;
+      try {
+        result = JSON.parse(data.content || '{}');
+      } catch (parseError) {
+        console.error('Failed to parse AI response as JSON:', parseError);
+        // Fallback response
+        result = {
+          recommendations: [],
+          totalCost: 0,
+          reasoning: 'Unable to process the search request. Please try again.'
+        };
+      }
       
       // Add to context for future conversations
-      this.context.push(`Searched for: ${request.query}, Found ${response.recommendations?.length || 0} products`);
+      this.context.push(`Searched for: ${request.query}, Found ${result.recommendations?.length || 0} products`);
       
-      return response as ShoppingResponse;
+      return result as ShoppingResponse;
     } catch (error) {
       console.error('AI search error:', error);
       return {
@@ -106,21 +118,28 @@ You have a spending limit of ${this.spendingLimit / 1000000} ALGO.
 You can help users find products, compare prices, and make purchase recommendations.
 Be friendly, helpful, and always stay within budget constraints.`;
 
-      const completion = await openai.chat.completions.create({
-        model: AI_CONFIG.MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...this.context.slice(-5).map(ctx => ({ role: 'assistant' as const, content: ctx })),
-          { role: 'user', content: message }
-        ],
-        temperature: AI_CONFIG.TEMPERATURE,
-        max_tokens: AI_CONFIG.MAX_TOKENS,
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemPrompt,
+          messages: [
+            ...this.context.slice(-5).map(ctx => ({ role: 'assistant', content: ctx })),
+            { role: 'user', content: message }
+          ]
+        })
       });
 
-      const response = completion.choices[0].message.content || 'I apologize, but I couldn\'t process that request.';
-      this.context.push(response);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get AI response');
+      }
+
+      const data = await response.json();
+      const aiResponse = data.content || 'I apologize, but I couldn\'t process that request.';
+      this.context.push(aiResponse);
       
-      return response;
+      return aiResponse;
     } catch (error) {
       console.error('AI chat error:', error);
       return 'I apologize, but I\'m having trouble connecting to the AI service.';
