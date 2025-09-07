@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
+import { 
+  isBlockchainEnabled, 
+  executePayment,
+  formatAlgo 
+} from '@/lib/blockchain';
 import type { RequestPaymentParams } from '@/types/contract';
 
 export async function POST(req: NextRequest) {
@@ -53,18 +58,54 @@ export async function POST(req: NextRequest) {
 
     const requestId = Number(result.lastInsertRowid);
 
-    // If auto-approved, update agent's total spent
+    // If auto-approved, execute the payment
+    let transactionHash = null;
+    
     if (autoApprove) {
+      // Execute blockchain transaction if enabled
+      if (isBlockchainEnabled()) {
+        try {
+          // Get agent mnemonic from database
+          const keyResult = await db.execute({
+            sql: 'SELECT mnemonic FROM agent_keys WHERE agent_id = ?',
+            args: [agentId]
+          });
+          
+          if (keyResult.rows.length > 0) {
+            const agentMnemonic = keyResult.rows[0].mnemonic as string;
+            
+            console.log(`🔗 Executing blockchain payment: ${formatAlgo(amount)} ALGO`);
+            const paymentResult = await executePayment(
+              agentMnemonic,
+              recipient,
+              amount,
+              `PayGuard AI: ${reason}`
+            );
+            
+            if (paymentResult.success && paymentResult.txid) {
+              transactionHash = paymentResult.txid;
+              console.log(`✅ Payment executed on blockchain: ${transactionHash}`);
+            } else {
+              console.error('Failed to execute blockchain payment:', paymentResult.error);
+            }
+          }
+        } catch (error) {
+          console.error('Error executing blockchain payment:', error);
+          // Continue even if blockchain payment fails
+        }
+      }
+      
+      // Update agent's total spent
       await db.execute({
         sql: 'UPDATE agents SET total_spent = total_spent + ? WHERE id = ?',
         args: [amount, agentId]
       });
 
-      // Create transaction record
+      // Create transaction record with hash if available
       await db.execute({
-        sql: `INSERT INTO transactions (agent_id, request_id, amount, recipient_address, status) 
-              VALUES (?, ?, ?, ?, ?)`,
-        args: [agentId, requestId, amount, recipient, 'completed']
+        sql: `INSERT INTO transactions (agent_id, request_id, amount, recipient_address, transaction_hash, status) 
+              VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [agentId, requestId, amount, recipient, transactionHash, 'completed']
       });
     }
     // Create notification

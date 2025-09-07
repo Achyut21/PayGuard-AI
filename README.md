@@ -4,6 +4,13 @@
 
 PayGuard AI revolutionizes autonomous shopping with AI agents that can make purchases within authorized spending limits. Built on Algorand blockchain for instant finality and powered by GPT-4 for intelligent shopping decisions.
 
+## 🔗 Live Blockchain Deployment
+
+**🎯 Smart Contract:** [View on Pera Explorer](https://testnet.explorer.perawallet.app/application/745512518/)  
+**👤 Creator Address:** [View Deployer Wallet](https://testnet.explorer.perawallet.app/address/HNXTBRFNCV7JFPLHH2MRFWFJ6NSGJ4RW4KCP7OUQ342A6D3DA3LZ22REFE/assets/0/)
+
+*Application ID: 745512518 • Deployed on Algorand TestNet • Fully Functional*
+
 ## 🎯 Problem Statement
 
 Parents want to give their kids shopping autonomy without losing control. Teams need shared budgets with smart approval flows. Current solutions lack the intelligence to shop effectively while maintaining security.

@@ -26,6 +26,16 @@ export async function initDatabase() {
       )
     `);
 
+    // Create agent_keys table for storing mnemonics (encrypted in production)
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS agent_keys (
+        agent_id TEXT PRIMARY KEY,
+        mnemonic TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (agent_id) REFERENCES agents(id)
+      )
+    `);
+
     // Create payment_requests table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS payment_requests (

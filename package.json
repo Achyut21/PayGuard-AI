@@ -8,9 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test:blockchain": "node scripts/test-blockchain.mjs",
+    "contract:deploy": "node scripts/deploy-contract.mjs",
     "contract:compile": "npx @algorandfoundation/tealscript contracts/PayGuardAI.ts contracts/build",
-    "contract:test": "tsx contracts/test.ts",
-    "contract:deploy": "tsx contracts/deploy.ts"
+    "contract:test": "tsx contracts/test.ts"
   },
   "dependencies": {
     "@algorandfoundation/algokit-utils": "^9.1.2",
